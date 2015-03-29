@@ -1,0 +1,6 @@
+.theos
+_
+obj
+theos
+*.log
+InspCWrapper.m

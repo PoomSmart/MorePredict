@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>title</key>
+    <string>MorePredict</string>
+    <key>entry</key>
+    <dict>
+      <key>cell</key>
+      <string>PSLinkCell</string>
+      <key>icon</key>
+      <string>MP.png</string>
+      <key>label</key>
+      <string>MorePredict</string>
+    </dict>
+    <key>items</key>
+    <array>
+		<dict>
+        <key>cell</key>
+        <string>PSGroupCell</string>
+        <key>label</key>
+        <string>Maximum Predictions</string>
+      </dict>
+      <dict>
+			<key>cell</key>
+			<string>PSEditTextCell</string>
+			<key>default</key>
+			<integer>3</integer>
+			<key>defaults</key>
+			<string>com.PS.MorePredict</string>
+			<key>key</key>
+			<string>UIPredictionCountForPortrait</string>
+			<key>label</key>
+			<string>Count (Portrait)</string>
+			<key>isNumeric</key>
+			<true/>
+			<key>PostNotification</key>
+			<string>com.PS.MorePredict.prefs</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSEditTextCell</string>
+			<key>default</key>
+			<integer>3</integer>
+			<key>defaults</key>
+			<string>com.PS.MorePredict</string>
+			<key>key</key>
+			<string>UIPredictionCountForLandscape</string>
+			<key>label</key>
+			<string>Count (Landscape)</string>
+			<key>isNumeric</key>
+			<true/>
+			<key>PostNotification</key>
+			<string>com.PS.MorePredict.prefs</string>
+		</dict>
+		<dict>
+        <key>cell</key>
+        <string>PSGroupCell</string>
+        <key>label</key>
+        <string>Predictions gap</string>
+        <key>footerText</key>
+        <string>Spacing (light gray lines) between suggested words. (Default to 1.0)</string>
+      </dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSliderCell</string>
+			<key>default</key>
+			<real>1.0</real>
+			<key>defaults</key>
+			<string>com.PS.MorePredict</string>
+			<key>key</key>
+			<string>UIPredictionGap</string>
+			<key>max</key>
+			<real>10.0</real>
+			<key>min</key>
+			<real>0.0</real>
+			<key>showValue</key>
+			<true/>
+			<key>PostNotification</key>
+			<string>com.PS.MorePredict.prefs</string>
+		</dict>
+       <dict>
+        <key>cell</key>
+        <string>PSGroupCell</string>
+        <key>footerAlignment</key>
+        <integer>1</integer>
+        <key>footerText</key>
+        <string>© 2013 - 2015 Thatchapon Unprasert
+(@PoomSmart)</string>
+      </dict>
+    </array>
+  </dict>
+</plist>

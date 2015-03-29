@@ -1,0 +1,8 @@
+Package: org.thebigboss.morepredict
+Name: MorePredict
+Depends: mobilesubstrate, preferenceloader, firmware (>= 8.0)
+Version: 1.1
+Architecture: iphoneos-arm
+Description: More suggested words on predictive keyboard.
+Maintainer: PoomSmart
+Author: PoomSmart
