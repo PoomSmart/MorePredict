@@ -65,6 +65,8 @@ CFStringRef gapKey = CFSTR("UIPredictionGap");
 - (void)setPredictionViewState:(NSInteger)state animate:(BOOL)animate notify:(BOOL)notify;
 - (void)setPredictions:(NSArray *)predictions autocorrection:(TIAutocorrectionList *)autocorrection;
 - (void)_setPredictions:(NSArray *)predictions autocorrection:(TIAutocorrectionList *)autocorrection;
+
+- (void)setCellsFrame:(CGRect)frame;
 @end
 
 @interface UIKeyboardInputManager : NSObject
@@ -125,6 +127,7 @@ extern "C" void reloadPredictionBar()
 			} while (index < cellCount);
 		}
 		MSHookIvar<NSMutableArray *>(kbView, "m_predictionCells") = cells;
+		[[[UIKeyboardImpl activeInstance] autocorrectionController] updateSuggestionViews];
 	}
 }
 
@@ -141,7 +144,6 @@ static NSUInteger predictionCountForLandscape(BOOL landscape)
 
 static NSUInteger predictionCount()
 {
-	//UIInterfaceOrientation orientation = [[UIKeyboardImpl activeInstance] interfaceOrientation];
 	UIInterfaceOrientation orientation = [[UIScreen mainScreen] _interfaceOrientation];
 	BOOL isLandscape = orientation == UIInterfaceOrientationLandscapeLeft || orientation == UIInterfaceOrientationLandscapeRight;
 	return predictionCountForLandscape(isLandscape);
@@ -160,9 +162,9 @@ BOOL padHook;
 
 %end
 
-%hook UIKeyboardImpl
+%hook UICompatibilityInputViewController
 
-- (void)textFrameChanged:(id)arg1
+- (void)didRotateFromInterfaceOrientation:(NSInteger)orientation
 {
 	%orig;
 	if (landscapeCount != portraitCount)
@@ -212,10 +214,10 @@ BOOL padHook;
 	return predictionCount();
 }
 
-- (void)setPredictions:(NSArray *)predictions autocorrection:(TIAutocorrectionList *)autocorrection
+- (void)_setPredictions:(NSArray *)predictions autocorrection:(TIAutocorrectionList *)autocorrection
 {
 	%orig;
-	self.frame = self.frame;
+	[self setCellsFrame:self.frame];
 }
 
 - (id)initWithFrame:(CGRect)frame
@@ -226,11 +228,9 @@ BOOL padHook;
 	return self;
 }
 
-- (void)setFrame:(CGRect)frame
+%new
+- (void)setCellsFrame:(CGRect)frame
 {
-	padHook = YES;
-	%orig;
-	padHook = NO;
 	NSMutableArray *cells = MSHookIvar<NSMutableArray *>(self, "m_predictionCells");
 	if (cells) {
 		NSInteger state = self.state;
@@ -246,6 +246,14 @@ BOOL padHook;
 			}
 		}
 	}
+}
+
+- (void)setFrame:(CGRect)frame
+{
+	padHook = YES;
+	%orig;
+	padHook = NO;
+	[self setCellsFrame:frame];
 }
 
 %end
@@ -327,15 +335,28 @@ static TIAutocorrectionList *filteredAutocorrectionList(TIKeyboardInputManagerZe
 
 %end
 
+NSString *path = @"/var/mobile/Library/Preferences/com.PS.MorePredict.plist";
+
 static void letsprefs()
 {
-	CFPreferencesAppSynchronize(domain);
+	/*CFPreferencesAppSynchronize(domain);
 	Boolean keyExist;
 	NSInteger value = CFPreferencesGetAppIntegerValue(landscapeKey, domain, &keyExist);
 	landscapeCount = !keyExist ? 3 : value;
 	value = CFPreferencesGetAppIntegerValue(portraitKey, domain, &keyExist);
-	portraitCount = !keyExist ? 3 : value;
-	id gapValue = (id)CFPreferencesCopyAppValue(gapKey, domain);
+	portraitCount = !keyExist ? 3 : value;*/
+	NSDictionary *prefs = [NSDictionary dictionaryWithContentsOfFile:path];
+	id object1 = [prefs objectForKey:(NSString *)landscapeKey];
+	id object2 = [prefs objectForKey:(NSString *)portraitKey];
+	id object3 = [prefs objectForKey:(NSString *)gapKey];
+	landscapeCount = object1 ? [object1 intValue] : 3;
+	portraitCount = object2 ? [object2 intValue] : 3;
+	#ifdef __LP64__
+	predictionGap = object3 ? [object3 doubleValue] : 1.0f;
+	#else
+	predictionGap = object3 ? [object3 floatValue] : 1.0f;
+	#endif
+	/*id gapValue = (id)CFPreferencesCopyAppValue(gapKey, domain);
 	if (gapValue) {
 		#ifdef __LP64__
 		predictionGap = [gapValue doubleValue];
@@ -343,7 +364,8 @@ static void letsprefs()
 		predictionGap = [gapValue floatValue];
 		#endif
 	} else
-		predictionGap = 1.0f;
+		predictionGap = 1.0f;*/
+	//NSLog(@"%d %d", landscapeCount, portraitCount);
 }
 
 static void prefsChanged(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo)
