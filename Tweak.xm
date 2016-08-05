@@ -1,47 +1,12 @@
 #import "../PS.h"
 
-//#include "InspCWrapper.m"
-
 CFStringRef domain = CFSTR("/var/mobile/Library/Preferences/com.PS.MorePredict");
 CFStringRef PreferencesNotification = CFSTR("com.PS.MorePredict.prefs");
 CFStringRef landscapeKey = CFSTR("UIPredictionCountForLandscape");
 CFStringRef portraitKey = CFSTR("UIPredictionCountForPortrait");
 CFStringRef gapKey = CFSTR("UIPredictionGap");
 
-@interface TIKeyboardCandidate : NSObject
-@end
-
-@interface TIKeyboardCandidateSingle : TIKeyboardCandidate
-@property(assign, nonatomic) NSString *candidate;
-@property(assign, nonatomic) NSString *input;
-@end
-
-@interface TIZephyrCandidate : TIKeyboardCandidateSingle
-@end
-
-@interface TIAutocorrectionList : NSObject
-+ (TIAutocorrectionList *)listWithAutocorrection:(TIZephyrCandidate *)autocorrection predictions:(NSArray *)predictions;
-- (TIAutocorrectionList *)autocorrection;
-- (NSArray *)predictions;
-@end
-
-@interface UIKeyboardAutocorrectionController : NSObject
-@property BOOL needsAutocorrection;
-@property BOOL deferredAutocorrection;
-@property BOOL requestedAutocorrection;
-@property(retain, nonatomic) TIAutocorrectionList *autocorrectionList;
-- (void)updateSuggestionViews;
-- (void)clearAutocorrection;
-- (void)setNeedsAutocorrection;
-@end
-
-@interface UIKeyboardImpl : NSObject
-+ (UIKeyboardImpl *)activeInstance;
-- (UIKeyboardAutocorrectionController *)autocorrectionController;
-- (UIInterfaceOrientation)interfaceOrientation;
-@end
-
-@interface UIInputSwitcherView
+@interface UIInputSwitcherView : UIView
 + (UIInputSwitcherView *)activeInstance;
 - (void)toggleKeyboardPredictionPreference;
 @end
@@ -69,15 +34,52 @@ CFStringRef gapKey = CFSTR("UIPredictionGap");
 - (void)setCellsFrame:(CGRect)frame;
 @end
 
-@interface UIKeyboardInputManager : NSObject
+@interface TIInputMode : NSObject {
+	uint8_t NSObject_opaque[4];
+	NSString *_languageWithRegion;
+	NSString *_variant;
+	NSLocale *_locale;
+	Class _inputManagerClass;
+	NSString *_normalizedIdentifier;
+}
 @end
 
-@interface TIKeyboardInputManagerZephyr : UIKeyboardInputManager
+@interface TIKeyboardInputManagerBase : NSObject {
+	TIInputMode *_inputMode;
+}
+@end
+
+@interface TIKeyboardInputManager : TIKeyboardInputManagerBase
+@end
+
+typedef struct TIInputManagerZephyr {
+	TIKeyboardInputManager *manager;
+} *TIInputManagerZephyrRef;
+
+@interface TIKeyboardInputManagerZephyr : TIKeyboardInputManager {
+	TIInputManagerZephyrRef m_impl;
+	NSMutableString *m_composedText;
+	unsigned int m_initialSelectedIndex;
+	int m_typology_recorder;
+	char _isEditingWordPrefix;
+	char _wordLearningEnabled;
+	int _config;
+	int _autocorrectionHistory;
+	int _rejectedAutocorrections;
+	int _autocorrectionsSuggestedForCurrentInput;
+	int _textCheckerExemptions;
+	int _acceptableCharacterSet;
+	int _revisionHistory;
+	int _autoshiftRegexLoader;
+}
 - (NSArray *)completionCandidates;
 - (NSIndexSet *)indexesOfDuplicatesInCandidates:(NSArray *)candidates;
 - (TIZephyrCandidate *)topCandidate;
 - (TIZephyrCandidate *)extendedAutocorrection:(TIZephyrCandidate *)autocorrection spanningInputsForCandidates:(NSArray *)candidates;
 - (TIAutocorrectionList *)autocorrectionListForEmptyInputWithDesiredCandidateCount:(NSUInteger)count;
+- (TIAutocorrectionList *)autocorrectionListForSelectedText;
+- (BOOL)shouldGenerateSuggestionsForSelectedText;
+- (NSUInteger)inputCount;
 @end
 
 extern "C" void setCellRect(UIKeyboardPredictionCell *cell, CGRect frame, NSUInteger index, NSUInteger count)
@@ -127,12 +129,13 @@ extern "C" void reloadPredictionBar()
 			} while (index < cellCount);
 		}
 		MSHookIvar<NSMutableArray *>(kbView, "m_predictionCells") = cells;
-		[[[UIKeyboardImpl activeInstance] autocorrectionController] updateSuggestionViews];
+		[UIKeyboardImpl.activeInstance.autocorrectionController updateSuggestionViews];
 	}
 }
 
 static NSUInteger landscapeCount;
 static NSUInteger portraitCount;
+static NSUInteger maxCount;
 static CGFloat predictionGap;
 
 BOOL is_kbd;
@@ -262,35 +265,76 @@ BOOL padHook;
 
 %group kbd
 
+BOOL fakeCount = NO;
+BOOL markCode1 = NO;
+BOOL markCode2 = YES;
+int seeArrays = 0;
+NSUInteger excess = 0;
+
+%hook __NSPlaceholderArray
+
+- (id)initWithCapacity:(NSUInteger)capacity
+{
+	if (fakeCount && markCode1) {
+		if (capacity == 2 || capacity == 3) {
+			capacity = portraitCount;
+			seeArrays++;
+		}
+		if (seeArrays == 2)
+			markCode1 = NO;
+	}
+	return %orig(capacity);
+}
+
+%end
+
+%hook __NSArrayM
+
+- (NSUInteger)count
+{
+	NSUInteger count = %orig;
+	if (fakeCount && markCode2) {
+		if (count > 2 && excess++ <= maxCount - 3) {
+			return 2;
+		}
+		excess = 0;
+	}
+	return count;
+}
+
+%end
+
 %hook TIKeyboardInputManagerZephyr
 
-static TIAutocorrectionList *filteredAutocorrectionList(TIKeyboardInputManagerZephyr *manager, TIAutocorrectionList *originalList)
+- (id)autocorrection
 {
-	if (originalList.autocorrection == nil)
-		return originalList;
-	NSArray *pureAutocorrectionList = [manager completionCandidates];
-	NSMutableArray *ourAutocorrectionList = [NSMutableArray array];
-	[ourAutocorrectionList addObjectsFromArray:pureAutocorrectionList];
-	NSUInteger predictCount = predictionCount();
-	if (ourAutocorrectionList.count >= predictCount)
-		[ourAutocorrectionList removeObjectsAtIndexes:[manager indexesOfDuplicatesInCandidates:ourAutocorrectionList]];
-	/*if (ourAutocorrectionList.count > predictCount) {
-		NSUInteger stopIndex = predictCount;
-		NSUInteger startIndex = ourAutocorrectionList.count - 1;
-		do {
-			[ourAutocorrectionList removeObjectAtIndex:startIndex];
-			startIndex--;
-		} while (startIndex >= stopIndex);
-	}*/
-	TIZephyrCandidate *autocorrection = [manager extendedAutocorrection:[manager topCandidate] spanningInputsForCandidates:ourAutocorrectionList];
-	return [TIAutocorrectionList listWithAutocorrection:autocorrection predictions:ourAutocorrectionList];
+	if (fakeCount)
+		markCode1 = YES;
+	return %orig;
+}
+
+- (id)completionCandidates
+{
+	if (fakeCount)
+		markCode2 = NO;
+	id r = %orig;
+	if (fakeCount)
+		markCode2 = YES;
+	return r;
+}
+
+- (id)extendedAutocorrection:(id)arg1 spanningInputsForCandidates:(id)arg2
+{
+	markCode2 = NO;
+	return %orig;
 }
 
 - (TIAutocorrectionList *)autocorrectionList
 {
-	TIAutocorrectionList *originalList = %orig;
-	//NSLog(@"%@ %@", originalList.autocorrection, originalList.predictions);
-	return filteredAutocorrectionList(self, originalList);
+	fakeCount = YES;
+	TIAutocorrectionList *t1 = %orig;
+	fakeCount = markCode1 = markCode2 = NO;
+	return t1;
 }
 
 - (id)autocorrectionListForEmptyInputWithDesiredCandidateCount:(NSUInteger)count
@@ -339,33 +383,16 @@ NSString *path = @"/var/mobile/Library/Preferences/com.PS.MorePredict.plist";
 
 static void letsprefs()
 {
-	/*CFPreferencesAppSynchronize(domain);
-	Boolean keyExist;
-	NSInteger value = CFPreferencesGetAppIntegerValue(landscapeKey, domain, &keyExist);
-	landscapeCount = !keyExist ? 3 : value;
-	value = CFPreferencesGetAppIntegerValue(portraitKey, domain, &keyExist);
-	portraitCount = !keyExist ? 3 : value;*/
 	NSDictionary *prefs = [NSDictionary dictionaryWithContentsOfFile:path];
-	id object1 = [prefs objectForKey:(NSString *)landscapeKey];
-	id object2 = [prefs objectForKey:(NSString *)portraitKey];
-	id object3 = [prefs objectForKey:(NSString *)gapKey];
+	id object1 = prefs[(NSString *)landscapeKey];
+	id object2 = prefs[(NSString *)portraitKey];
+	id object3 = prefs[(NSString *)gapKey];
 	landscapeCount = object1 ? [object1 intValue] : 3;
 	portraitCount = object2 ? [object2 intValue] : 3;
-	#ifdef __LP64__
+	maxCount = portraitCount;
+	if (landscapeCount > maxCount)
+		maxCount = landscapeCount;
 	predictionGap = object3 ? [object3 doubleValue] : 1.0f;
-	#else
-	predictionGap = object3 ? [object3 floatValue] : 1.0f;
-	#endif
-	/*id gapValue = (id)CFPreferencesCopyAppValue(gapKey, domain);
-	if (gapValue) {
-		#ifdef __LP64__
-		predictionGap = [gapValue doubleValue];
-		#else
-		predictionGap = [gapValue floatValue];
-		#endif
-	} else
-		predictionGap = 1.0f;*/
-	//NSLog(@"%d %d", landscapeCount, portraitCount);
 }
 
 static void prefsChanged(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo)
@@ -390,7 +417,6 @@ static void prefsChanged(CFNotificationCenterRef center, void *observer, CFStrin
 				letsprefs();
 			}
 			if (is_kbd) {
-				dlopen("/System/Library/TextInput/libTextInputCore.dylib", RTLD_LAZY);
 				%init(kbd);
 			}
 			if (isApplication || isSpringBoard) {
