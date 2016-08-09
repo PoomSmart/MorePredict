@@ -1,86 +1,40 @@
-#import "../PS.h"
+#import "Header.h"
 
-CFStringRef domain = CFSTR("/var/mobile/Library/Preferences/com.PS.MorePredict");
 CFStringRef PreferencesNotification = CFSTR("com.PS.MorePredict.prefs");
+CFStringRef maxPadKey = CFSTR("UIPredictionExpandedPad");
 CFStringRef landscapeKey = CFSTR("UIPredictionCountForLandscape");
 CFStringRef portraitKey = CFSTR("UIPredictionCountForPortrait");
 CFStringRef gapKey = CFSTR("UIPredictionGap");
+CFStringRef barHeightFactorKey = CFSTR("UIPredictionBarHeightFactor");
+NSString *path = @"/var/mobile/Library/Preferences/com.PS.MorePredict.plist";
 
-@interface UIInputSwitcherView : UIView
-+ (UIInputSwitcherView *)activeInstance;
-- (void)toggleKeyboardPredictionPreference;
-@end
+BOOL maxPad;
+NSUInteger landscapeCount;
+NSUInteger portraitCount;
+NSUInteger maxCount;
+CGFloat predictionGap;
+CGFloat barHeightFactor;
 
-@interface UIMorphingLabel : UILabel
-@end
-
-@interface UIKeyboardPredictionCell : UIView
-@property CGRect collapsedFrame;
-@property CGRect activeFrame;
-@property CGRect baseFrame;
-@property(retain, nonatomic, readonly) UIMorphingLabel *label;
-@end
-
-@interface UIKeyboardPredictionView : UIView
-@property NSInteger state;
-@property BOOL show;
-+ (NSUInteger)numberOfCandidates;
-+ (CGFloat)predictionViewHeightForState:(NSInteger)state orientation:(UIInterfaceOrientation)orientation;
-+ (CGFloat)overlapHeight;
-- (void)setPredictionViewState:(NSInteger)state animate:(BOOL)animate notify:(BOOL)notify;
-- (void)setPredictions:(NSArray *)predictions autocorrection:(TIAutocorrectionList *)autocorrection;
-- (void)_setPredictions:(NSArray *)predictions autocorrection:(TIAutocorrectionList *)autocorrection;
-
-- (void)setCellsFrame:(CGRect)frame;
-@end
-
-@interface TIInputMode : NSObject {
-	uint8_t NSObject_opaque[4];
-	NSString *_languageWithRegion;
-	NSString *_variant;
-	NSLocale *_locale;
-	Class _inputManagerClass;
-	NSString *_normalizedIdentifier;
+void updateMaxCount()
+{
+	maxCount = portraitCount;
+	if (landscapeCount > maxCount)
+		maxCount = landscapeCount;
 }
-@end
 
-@interface TIKeyboardInputManagerBase : NSObject {
-	TIInputMode *_inputMode;
+CGFloat appropriateCellHeight(CGFloat original)
+{
+	CGFloat height = original;
+    if (IS_IPAD)
+		height = isiOS9Up ? [NSClassFromString(@"UIKeyboardAssistantBar") assistantBarHeight] * 41 / 55 : original; // Huh?
+	else {
+		NSInteger orientation = [[UIKeyboard activeKeyboard] interfaceOrientation];
+    	if (orientation == 0)
+			orientation = [UIApplication.sharedApplication _frontMostAppOrientation];
+		height = [NSClassFromString(@"UIKeyboardPredictionView") predictionViewHeightForState:1 orientation:orientation];
+	}
+	return height;
 }
-@end
-
-@interface TIKeyboardInputManager : TIKeyboardInputManagerBase
-@end
-
-typedef struct TIInputManagerZephyr {
-	TIKeyboardInputManager *manager;
-} *TIInputManagerZephyrRef;
-
-@interface TIKeyboardInputManagerZephyr : TIKeyboardInputManager {
-	TIInputManagerZephyrRef m_impl;
-	NSMutableString *m_composedText;
-	unsigned int m_initialSelectedIndex;
-	int m_typology_recorder;
-	char _isEditingWordPrefix;
-	char _wordLearningEnabled;
-	int _config;
-	int _autocorrectionHistory;
-	int _rejectedAutocorrections;
-	int _autocorrectionsSuggestedForCurrentInput;
-	int _textCheckerExemptions;
-	int _acceptableCharacterSet;
-	int _revisionHistory;
-	int _autoshiftRegexLoader;
-}
-- (NSArray *)completionCandidates;
-- (NSIndexSet *)indexesOfDuplicatesInCandidates:(NSArray *)candidates;
-- (TIZephyrCandidate *)topCandidate;
-- (TIZephyrCandidate *)extendedAutocorrection:(TIZephyrCandidate *)autocorrection spanningInputsForCandidates:(NSArray *)candidates;
-- (TIAutocorrectionList *)autocorrectionListForEmptyInputWithDesiredCandidateCount:(NSUInteger)count;
-- (TIAutocorrectionList *)autocorrectionListForSelectedText;
-- (BOOL)shouldGenerateSuggestionsForSelectedText;
-- (NSUInteger)inputCount;
-@end
 
 extern "C" void setCellRect(UIKeyboardPredictionCell *cell, CGRect frame, NSUInteger index, NSUInteger count)
 {
@@ -88,13 +42,14 @@ extern "C" void setCellRect(UIKeyboardPredictionCell *cell, CGRect frame, NSUInt
 	BOOL notHeadOrTail = index == 0 || isLast;
 	CGFloat gap = [%c(UIKeyboardPredictionView) overlapHeight];
 	CGFloat cellWidth = (frame.size.width - (count - 1) * gap) / count;
-	CGFloat cellHeight = frame.size.height;
+	CGFloat cellHeight = appropriateCellHeight(frame.size.height);
 	CGFloat cellX = index == 0 ? 0 : (index * (cellWidth + gap));
-	CGRect cellFrame = CGRectMake(cellX, 0, cellWidth, cellHeight);
+	CGFloat cellY = frame.size.height / 2 - cellHeight / 2;
+	CGRect cellFrame = CGRectMake(cellX, cellY, cellWidth, cellHeight);
 	CGFloat activeWidth = cellWidth + (notHeadOrTail ? (2 * gap) : gap);
-	CGRect activeFrame = CGRectMake(cellX, 0, activeWidth, cellHeight);
-	CGFloat baseWidth = cellWidth + (notHeadOrTail ? 0.0f : gap);
-	CGRect baseFrame = CGRectMake(cellX, 0, baseWidth, cellHeight);
+	CGRect activeFrame = CGRectMake(cellX, cellY, activeWidth, cellHeight);
+	CGFloat baseWidth = cellWidth + (notHeadOrTail ? 0.0 : gap);
+	CGRect baseFrame = CGRectMake(cellX, cellY, baseWidth, cellHeight);
 	cell.activeFrame = activeFrame;
 	cell.collapsedFrame = baseFrame;
 	cell.baseFrame = baseFrame;
@@ -110,9 +65,8 @@ extern "C" void reloadPredictionBar()
 		NSMutableArray *cells = MSHookIvar<NSMutableArray *>(kbView, "m_predictionCells");
 		if (cells.count == 0)
 			return;
-		for (UIKeyboardPredictionCell *cell in cells) {
+		for (UIKeyboardPredictionCell *cell in cells)
 			[cell removeFromSuperview];
-		}
 		[cells release];
 		NSUInteger cellCount = [objc_getClass("UIKeyboardPredictionView") numberOfCandidates];
 		cells = [[NSMutableArray alloc] initWithCapacity:cellCount];
@@ -120,7 +74,7 @@ extern "C" void reloadPredictionBar()
 			NSUInteger index = 0;
 			do {
 				UIKeyboardPredictionCell *cell = [[objc_getClass("UIKeyboardPredictionCell") alloc] initWithFrame:CGRectZero];
-				cell.label.font = [UIFont systemFontOfSize:18.0f];
+				cell.label.font = [UIFont systemFontOfSize:18.0];
 				cell.opaque = NO;
 				[kbView addSubview:cell];
 				setCellRect(cell, kbView.frame, index, cellCount);
@@ -132,11 +86,6 @@ extern "C" void reloadPredictionBar()
 		[UIKeyboardImpl.activeInstance.autocorrectionController updateSuggestionViews];
 	}
 }
-
-static NSUInteger landscapeCount;
-static NSUInteger portraitCount;
-static NSUInteger maxCount;
-static CGFloat predictionGap;
 
 BOOL is_kbd;
 
@@ -153,17 +102,6 @@ static NSUInteger predictionCount()
 }
 
 %group app
-
-BOOL padHook;
-
-%hook UIDevice
-
-- (UIUserInterfaceIdiom)userInterfaceIdiom
-{
-	return padHook ? UIUserInterfaceIdiomPhone : %orig;
-}
-
-%end
 
 %hook UICompatibilityInputViewController
 
@@ -195,6 +133,17 @@ BOOL padHook;
 
 %end
 
+BOOL padHook = NO;
+
+%hook UIDevice
+
+- (UIUserInterfaceIdiom)userInterfaceIdiom
+{
+	return padHook ? UIUserInterfaceIdiomPhone : %orig;
+}
+
+%end
+
 %hook UIKeyboardPredictionView
 
 + (CGFloat)overlapHeight
@@ -202,9 +151,32 @@ BOOL padHook;
 	return predictionGap;
 }
 
++ (CGFloat)predictionViewHeightForState:(NSInteger)state orientation:(NSInteger)orientation
+{
+	CGFloat height = %orig;
+	return height > 0.0 ? height * barHeightFactor : height;
+}
+
+// iOS 9.0+
++ (CGFloat)predictionViewWidthForOrientation:(NSInteger)orientation
+{
+	padHook = maxPad;
+	CGFloat width = %orig;
+	padHook = NO;
+	return width;
+}
+
 + (NSUInteger)numberOfCandidates
 {
 	return predictionCount();
+}
+
+- (id)initWithFrame:(CGRect)frame
+{
+	padHook = !isiOS9Up;
+	self = %orig;
+	padHook = NO;
+	return self;
 }
 
 - (NSUInteger)messageCount
@@ -223,17 +195,11 @@ BOOL padHook;
 	[self setCellsFrame:self.frame];
 }
 
-- (id)initWithFrame:(CGRect)frame
-{
-	padHook = YES;
-	self = %orig;
-	padHook = NO;
-	return self;
-}
-
 %new
 - (void)setCellsFrame:(CGRect)frame
 {
+	if (MSHookIvar<BOOL>(self, "m_isMinimized"))
+		return;
 	NSMutableArray *cells = MSHookIvar<NSMutableArray *>(self, "m_predictionCells");
 	if (cells) {
 		NSInteger state = self.state;
@@ -253,7 +219,7 @@ BOOL padHook;
 
 - (void)setFrame:(CGRect)frame
 {
-	padHook = YES;
+	padHook = !isiOS9Up;
 	%orig;
 	padHook = NO;
 	[self setCellsFrame:frame];
@@ -277,7 +243,7 @@ NSUInteger excess = 0;
 {
 	if (fakeCount && markCode1) {
 		if (capacity == 2 || capacity == 3) {
-			capacity = portraitCount;
+			capacity = maxCount;
 			seeArrays++;
 		}
 		if (seeArrays == 2)
@@ -294,9 +260,8 @@ NSUInteger excess = 0;
 {
 	NSUInteger count = %orig;
 	if (fakeCount && markCode2) {
-		if (count > 2 && excess++ <= maxCount - 3) {
+		if (count > 2 && excess++ <= maxCount - 3)
 			return 2;
-		}
 		excess = 0;
 	}
 	return count;
@@ -339,7 +304,7 @@ NSUInteger excess = 0;
 
 - (id)autocorrectionListForEmptyInputWithDesiredCandidateCount:(NSUInteger)count
 {
-	return %orig(predictionCount());
+	return %orig(maxCount);
 }
 
 %end
@@ -348,17 +313,17 @@ NSUInteger excess = 0;
 
 - (id)initWithMaxCommittedCandidateCount:(NSUInteger)count
 {
-	return %orig(predictionCount());
+	return %orig(maxCount);
 }
 
 - (NSUInteger)maxCommittedCandidateCount
 {
-	return predictionCount();
+	return maxCount;
 }
 
 - (void)setMaxCommittedCandidateCount:(NSUInteger)count
 {
-	%orig(predictionCount());
+	%orig(maxCount);
 }
 
 %end
@@ -367,39 +332,39 @@ NSUInteger excess = 0;
 
 - (NSUInteger)maxCandidateCount
 {
-	return predictionCount();
+	return maxCount;
 }
 
 - (void)setMaxCandidateCount:(NSUInteger)count
 {
-	%orig(predictionCount());
+	%orig(maxCount);
 }
 
 %end
 
 %end
-
-NSString *path = @"/var/mobile/Library/Preferences/com.PS.MorePredict.plist";
 
 static void letsprefs()
 {
 	NSDictionary *prefs = [NSDictionary dictionaryWithContentsOfFile:path];
+	id object0 = prefs[(NSString *)maxPadKey];
 	id object1 = prefs[(NSString *)landscapeKey];
 	id object2 = prefs[(NSString *)portraitKey];
 	id object3 = prefs[(NSString *)gapKey];
+	id object4 = prefs[(NSString *)barHeightFactorKey];
+	maxPad = [object0 boolValue];
 	landscapeCount = object1 ? [object1 intValue] : 3;
 	portraitCount = object2 ? [object2 intValue] : 3;
-	maxCount = portraitCount;
-	if (landscapeCount > maxCount)
-		maxCount = landscapeCount;
-	predictionGap = object3 ? [object3 doubleValue] : 1.0f;
+	predictionGap = object3 ? [object3 doubleValue] : 1.0;
+	barHeightFactor = object4 ? [object4 doubleValue] : 1.0;
 }
 
-static void prefsChanged(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo)
+static void prefsChanged()
 {
 	letsprefs();
 	if (!is_kbd)
 		reloadPredictionBar();
+	updateMaxCount();
 }
 
 %ctor
@@ -411,9 +376,12 @@ static void prefsChanged(CFNotificationCenterRef center, void *observer, CFStrin
 		if (executablePath) {
 			BOOL isApplication = [executablePath rangeOfString:@"/Application"].location != NSNotFound;
 			BOOL isSpringBoard = [[executablePath lastPathComponent] isEqualToString:@"SpringBoard"];
+			BOOL isExtension = [executablePath rangeOfString:@"appex"].location != NSNotFound;
+			if (isExtension)
+				return;
 			is_kbd = [[executablePath lastPathComponent] isEqualToString:@"kbd"];
 			if (is_kbd || isApplication || isSpringBoard) {
-				CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, &prefsChanged, PreferencesNotification, NULL, CFNotificationSuspensionBehaviorCoalesce);
+				CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, (CFNotificationCallback)prefsChanged, PreferencesNotification, NULL, CFNotificationSuspensionBehaviorCoalesce);
 				letsprefs();
 			}
 			if (is_kbd) {

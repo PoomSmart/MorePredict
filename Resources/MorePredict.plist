@@ -15,6 +15,54 @@
     </dict>
     <key>items</key>
     <array>
+    <dict>
+        <key>cell</key>
+        <string>PSGroupCell</string>
+        <key>label</key>
+        <string>Full-width bar</string>
+        <key>requiredCapabilities</key>
+		<array>
+			<dict>
+				<key>ipad</key>
+				<true/>
+			</dict>
+		</array>
+		<key>pl_filter</key>
+		<dict>
+		<key>CoreFoundationVersion</key>
+			<array>
+				<string>1217.11</string>
+			</array>
+		</dict>
+      </dict>
+    <dict>
+        <key>cell</key>
+        <string>PSSwitchCell</string>
+        <key>default</key>
+        <false/>
+        <key>defaults</key>
+        <string>com.PS.MorePredict</string>
+        <key>key</key>
+        <string>UIPredictionExpandedPad</string>
+        <key>label</key>
+        <string>Enabled</string>
+        <key>PostNotification</key>
+        <string>com.PS.MorePredict.prefs</string>
+        <key>requiredCapabilities</key>
+		<array>
+			<dict>
+				<key>ipad</key>
+				<true/>
+			</dict>
+		</array>
+		<key>pl_filter</key>
+		<dict>
+		<key>CoreFoundationVersion</key>
+			<array>
+				<string>1217.11</string>
+			</array>
+		</dict>
+      </dict>
 		<dict>
         <key>cell</key>
         <string>PSGroupCell</string>
@@ -74,6 +122,32 @@
 			<real>10.0</real>
 			<key>min</key>
 			<real>0.0</real>
+			<key>showValue</key>
+			<true/>
+			<key>PostNotification</key>
+			<string>com.PS.MorePredict.prefs</string>
+		</dict>
+		<dict>
+        <key>cell</key>
+        <string>PSGroupCell</string>
+        <key>label</key>
+        <string>Bar height factor</string>
+        <key>footerText</key>
+        <string>Height factor of prediction bar (Default to 1.0)</string>
+      </dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSliderCell</string>
+			<key>default</key>
+			<real>1.0</real>
+			<key>defaults</key>
+			<string>com.PS.MorePredict</string>
+			<key>key</key>
+			<string>UIPredictionBarHeightFactor</string>
+			<key>max</key>
+			<real>3.0</real>
+			<key>min</key>
+			<real>0.2</real>
 			<key>showValue</key>
 			<true/>
 			<key>PostNotification</key>
