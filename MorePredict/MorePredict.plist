@@ -21,19 +21,19 @@
         <key>label</key>
         <string>Full-width bar</string>
         <key>requiredCapabilities</key>
-		<array>
-			<dict>
-				<key>ipad</key>
-				<true/>
-			</dict>
-		</array>
-		<key>pl_filter</key>
-		<dict>
-		<key>CoreFoundationVersion</key>
-			<array>
-				<string>1217.11</string>
-			</array>
-		</dict>
+    		<array>
+    			<dict>
+    				<key>ipad</key>
+    				<true/>
+    			</dict>
+    		</array>
+    		<key>pl_filter</key>
+    		<dict>
+    		<key>CoreFoundationVersion</key>
+    			<array>
+    				<string>1217.11</string>
+    			</array>
+    		</dict>
       </dict>
     <dict>
         <key>cell</key>
@@ -47,21 +47,21 @@
         <key>label</key>
         <string>Enabled</string>
         <key>PostNotification</key>
-        <string>com.PS.MorePredict.prefs</string>
+        <string>com.PS.MorePredict/ReloadPrefs</string>
         <key>requiredCapabilities</key>
-		<array>
-			<dict>
-				<key>ipad</key>
-				<true/>
-			</dict>
-		</array>
-		<key>pl_filter</key>
-		<dict>
-		<key>CoreFoundationVersion</key>
-			<array>
-				<string>1217.11</string>
-			</array>
-		</dict>
+    		<array>
+    			<dict>
+    				<key>ipad</key>
+    				<true/>
+    			</dict>
+    		</array>
+    		<key>pl_filter</key>
+    		<dict>
+    		<key>CoreFoundationVersion</key>
+    			<array>
+    				<string>1217.11</string>
+    			</array>
+    		</dict>
       </dict>
 		<dict>
         <key>cell</key>
@@ -83,7 +83,7 @@
 			<key>isNumeric</key>
 			<true/>
 			<key>PostNotification</key>
-			<string>com.PS.MorePredict.prefs</string>
+			<string>com.PS.MorePredict/ReloadPrefs</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -99,7 +99,7 @@
 			<key>isNumeric</key>
 			<true/>
 			<key>PostNotification</key>
-			<string>com.PS.MorePredict.prefs</string>
+			<string>com.PS.MorePredict/ReloadPrefs</string>
 		</dict>
 		<dict>
         <key>cell</key>
@@ -125,7 +125,7 @@
 			<key>showValue</key>
 			<true/>
 			<key>PostNotification</key>
-			<string>com.PS.MorePredict.prefs</string>
+			<string>com.PS.MorePredict/ReloadPrefs</string>
 		</dict>
 		<dict>
         <key>cell</key>
@@ -151,7 +151,7 @@
 			<key>showValue</key>
 			<true/>
 			<key>PostNotification</key>
-			<string>com.PS.MorePredict.prefs</string>
+			<string>com.PS.MorePredict/ReloadPrefs</string>
 		</dict>
        <dict>
         <key>cell</key>
@@ -159,7 +159,7 @@
         <key>footerAlignment</key>
         <integer>1</integer>
         <key>footerText</key>
-        <string>© 2013 - 2016 Thatchapon Unprasert
+        <string>© 2013 - 2017 Thatchapon Unprasert
 (@PoomSmart)</string>
       </dict>
     </array>

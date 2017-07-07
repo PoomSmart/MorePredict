@@ -1,4 +1,7 @@
 #import "../PS.h"
+#import <UIKit/UIKeyboard.h>
+#import <UIKit/UIApplication+Private.h>
+#import <UIKit/UIKeyboardImpl.h>
 
 @interface UIInputSwitcherView : UIView
 + (UIInputSwitcherView *)activeInstance;
@@ -26,8 +29,8 @@
 + (CGFloat)predictionViewHeightForState:(NSInteger)state orientation:(UIInterfaceOrientation)orientation;
 + (CGFloat)overlapHeight;
 - (void)setPredictionViewState:(NSInteger)state animate:(BOOL)animate notify:(BOOL)notify;
-- (void)setPredictions:(NSArray *)predictions autocorrection:(TIAutocorrectionList *)autocorrection;
-- (void)_setPredictions:(NSArray *)predictions autocorrection:(TIAutocorrectionList *)autocorrection;
+- (void)setPredictions:(NSArray *)predictions autocorrection:(id /*TIAutocorrectionList * */)autocorrection;
+- (void)_setPredictions:(NSArray *)predictions autocorrection:(id /*TIAutocorrectionList * */)autocorrection;
 
 - (void)setCellsFrame:(CGRect)frame;
 @end
@@ -72,10 +75,10 @@ typedef struct TIInputManagerZephyr {
 }
 - (NSArray *)completionCandidates;
 - (NSIndexSet *)indexesOfDuplicatesInCandidates:(NSArray *)candidates;
-- (TIZephyrCandidate *)topCandidate;
-- (TIZephyrCandidate *)extendedAutocorrection:(TIZephyrCandidate *)autocorrection spanningInputsForCandidates:(NSArray *)candidates;
-- (TIAutocorrectionList *)autocorrectionListForEmptyInputWithDesiredCandidateCount:(NSUInteger)count;
-- (TIAutocorrectionList *)autocorrectionListForSelectedText;
+//- (TIZephyrCandidate *)topCandidate;
+//- (TIZephyrCandidate *)extendedAutocorrection:(TIZephyrCandidate *)autocorrection spanningInputsForCandidates:(NSArray *)candidates;
+//- (TIAutocorrectionList *)autocorrectionListForEmptyInputWithDesiredCandidateCount:(NSUInteger)count;
+//- (TIAutocorrectionList *)autocorrectionListForSelectedText;
 - (BOOL)shouldGenerateSuggestionsForSelectedText;
 - (NSUInteger)inputCount;
 @end
