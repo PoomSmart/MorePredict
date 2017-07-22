@@ -1,7 +1,9 @@
 #define CHECK_TARGET
 #define CHECK_EXCEPTIONS
+#define CHECK_PROCESS_NAME
 #define USE_REAL_PATH
 #import "Header.h"
+#import <notify.h>
 #import "../PSPrefs.x"
 
 NSString *const tweakIdentifier = @"com.PS.MorePredict";
@@ -10,6 +12,8 @@ NSString *const landscapeCountKey = @"UIPredictionCountForLandscape";
 NSString *const portraitCountKey = @"UIPredictionCountForPortrait";
 NSString *const predictionGapKey = @"UIPredictionGap";
 NSString *const barHeightFactorKey = @"UIPredictionBarHeightFactor";
+
+BOOL unhook = NO;
 
 BOOL maxPad;
 NSUInteger landscapeCount;
@@ -55,6 +59,8 @@ extern "C" void setCellRect(UIKeyboardPredictionCell *cell, CGRect frame, NSUInt
 }
 
 extern "C" void reloadPredictionBar() {
+    if (isiOS10Up)
+        return;
     UIKeyboardPredictionView *kbView = (UIKeyboardPredictionView *)[objc_getClass("UIKeyboardPredictionView") activeInstance];
     if ([kbView isKindOfClass:objc_getClass("UIKeyboardPredictionView")]) {
         if (!kbView.show)
@@ -156,7 +162,7 @@ BOOL padHook = NO;
 }
 
 + (NSUInteger)numberOfCandidates {
-    return predictionCount();
+    return unhook ? %orig : predictionCount();
 }
 
 - (id)initWithFrame:(CGRect)frame {
@@ -174,7 +180,70 @@ BOOL padHook = NO;
     return predictionCount();
 }
 
-- (void)_setPredictions:(NSArray *)predictions autocorrection:(TIAutocorrectionList *)autocorrection {
+%end
+
+%end
+
+%group Apps_iOS10Up
+
+%hook UIKeyboardPredictionView
+
+- (void)initCells {
+    if (MSHookIvar<NSMutableArray *>(self, "m_predictionCells") == nil) {
+        NSUInteger count = MAX([NSClassFromString(@"UIKeyboardPredictionView") numberOfCandidates], 3);
+        MSHookIvar<NSMutableArray *>(self, "m_threeTextCells") = [self createCells:count];
+        MSHookIvar<NSMutableArray *>(self, "m_twoTextCells") = [self createCells:2];
+        MSHookIvar<NSMutableArray *>(self, "m_oneTextCells") = [self createCells:3];
+        MSHookIvar<NSMutableArray *>(self, "m_emojiCells") = [self createCells:count];
+        NSMutableArray *array = [[NSMutableArray alloc] initWithCapacity:count];
+        MSHookIvar<NSMutableArray *>(self, "m_textAndEmojiCells") = array;
+        [array addObjectsFromArray:[MSHookIvar<NSMutableArray *>(self, "m_threeTextCells") subarrayWithRange:NSMakeRange(0, count - 2)]];
+        [MSHookIvar<NSMutableArray *>(self, "m_textAndEmojiCells") addObjectsFromArray:MSHookIvar < NSMutableArray *> (self, "m_emojiCells")];
+        MSHookIvar<NSMutableArray *>(self, "m_lastCell") = [MSHookIvar<NSMutableArray *>(self, "m_threeTextCells")lastObject];
+        MSHookIvar<NSMutableArray *>(self, "m_predictionCells") = MSHookIvar<NSMutableArray *>(self, "m_threeTextCells");
+        [MSHookIvar<NSMutableArray *>(self, "m_threeTextCells") enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop){
+            [self addSubview:obj];
+        }];
+        MSHookIvar<NSUInteger>(self, "m_autocorrectionCell") = NSNotFound;
+        int *token = &MSHookIvar<int>(self, "_notifyBatterySaverToken");
+        int status = notify_register_dispatch("com.apple.system.batterysavermode", token, dispatch_get_main_queue(), ^(int token_) {
+            uint64_t state = UINT64_MAX;
+            notify_get_state(token_, &state);
+            for (UIKeyboardPredictionCell *cell in MSHookIvar<NSMutableArray *>(self, "m_predictionCells")) {
+                cell.label.enableAnimation = state != 0;
+            }
+        });
+        if (status != NOTIFY_STATUS_OK)
+            NSLog(@"Failed to register for battery saver notifications");
+    }
+}
+
+- (void)_setPredictions:(id)predictions autocorrection:(id)autocorrection emojiList:(id)emojiList {
+    unhook = YES;
+    %orig;
+    unhook = NO;
+}
+
+%end
+
+%hook UIKeyboardImpl
+
+- (id)replacementsFromSelectedText {
+    unhook = YES;
+    id orig = %orig;
+    unhook = NO;
+    return orig;
+}
+
+%end
+
+%end
+
+%group Apps_preiOS10
+
+%hook UIKeyboardPredictionView
+
+- (void)_setPredictions: (NSArray *)predictions autocorrection: (TIAutocorrectionList *)autocorrection {
     %orig;
     [self setCellsFrame:self.frame];
 }
@@ -325,8 +394,8 @@ HaveCallback() {
 }
 
 %ctor {
-    if (_isTarget(TargetTypeGUINoExtension, @[ @"com.apple.TextInput.kbd" ])) {
-        is_kbd = [NSBundle.mainBundle.bundleIdentifier isEqualToString:@"com.apple.TextInput.kbd"];
+    if (_isTarget(TargetTypeGUINoExtension, @[ @"kbd" ])) {
+        is_kbd = NSBundle.mainBundle.bundleIdentifier == nil;
         HaveObserver();
         callback();
         dlopen(realPath2(@"/System/Library/TextInput/libTextInputCore.dylib"), RTLD_LAZY);
@@ -334,6 +403,11 @@ HaveCallback() {
             %init(kbd);
         } else {
             %init(Apps);
+            if (isiOS10Up) {
+                %init(Apps_iOS10Up)
+            } else {
+                %init(Apps_preiOS10);
+            }
         }
     }
 }

@@ -13,6 +13,7 @@
 @end
 
 @interface UIMorphingLabel : UILabel
+@property BOOL enableAnimation;
 @end
 
 @interface UIKeyboardPredictionCell : UIView
@@ -31,22 +32,25 @@
 - (void)setPredictionViewState:(NSInteger)state animate:(BOOL)animate notify:(BOOL)notify;
 - (void)setPredictions:(NSArray *)predictions autocorrection:(id /*TIAutocorrectionList * */)autocorrection;
 - (void)_setPredictions:(NSArray *)predictions autocorrection:(id /*TIAutocorrectionList * */)autocorrection;
+- (NSMutableArray *)createCells:(NSUInteger)count;
+@end
 
+@interface UIKeyboardPredictionView (Addition)
 - (void)setCellsFrame:(CGRect)frame;
 @end
 
 @interface TIInputMode : NSObject {
-	uint8_t NSObject_opaque[4];
-	NSString *_languageWithRegion;
-	NSString *_variant;
-	NSLocale *_locale;
-	Class _inputManagerClass;
-	NSString *_normalizedIdentifier;
+    uint8_t NSObject_opaque[4];
+    NSString *_languageWithRegion;
+    NSString *_variant;
+    NSLocale *_locale;
+    Class _inputManagerClass;
+    NSString *_normalizedIdentifier;
 }
 @end
 
 @interface TIKeyboardInputManagerBase : NSObject {
-	TIInputMode *_inputMode;
+    TIInputMode *_inputMode;
 }
 @end
 
@@ -54,24 +58,24 @@
 @end
 
 typedef struct TIInputManagerZephyr {
-	TIKeyboardInputManager *manager;
+    TIKeyboardInputManager *manager;
 } *TIInputManagerZephyrRef;
 
 @interface TIKeyboardInputManagerZephyr : TIKeyboardInputManager {
-	TIInputManagerZephyrRef m_impl;
-	NSMutableString *m_composedText;
-	unsigned int m_initialSelectedIndex;
-	int m_typology_recorder;
-	char _isEditingWordPrefix;
-	char _wordLearningEnabled;
-	int _config;
-	int _autocorrectionHistory;
-	int _rejectedAutocorrections;
-	int _autocorrectionsSuggestedForCurrentInput;
-	int _textCheckerExemptions;
-	int _acceptableCharacterSet;
-	int _revisionHistory;
-	int _autoshiftRegexLoader;
+    TIInputManagerZephyrRef m_impl;
+    NSMutableString *m_composedText;
+    unsigned int m_initialSelectedIndex;
+    int m_typology_recorder;
+    char _isEditingWordPrefix;
+    char _wordLearningEnabled;
+    int _config;
+    int _autocorrectionHistory;
+    int _rejectedAutocorrections;
+    int _autocorrectionsSuggestedForCurrentInput;
+    int _textCheckerExemptions;
+    int _acceptableCharacterSet;
+    int _revisionHistory;
+    int _autoshiftRegexLoader;
 }
 - (NSArray *)completionCandidates;
 - (NSIndexSet *)indexesOfDuplicatesInCandidates:(NSArray *)candidates;
